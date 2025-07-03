@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Packliste</title>
+    
+    <!-- PWA Manifest & Theme -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#14B8A6">
+    <!-- KORRIGIERT: Icon wird direkt aus dem Internet geladen -->
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/0D9488/FFFFFF?text=☀️&font=noto">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Packliste">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: linear-gradient(rgba(240, 253, 250, 0.9), rgba(240, 253, 250, 0.9)), url('https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .dark body {
+            background-image: linear-gradient(rgba(19, 78, 74, 0.95), rgba(19, 78, 74, 0.95)), url('https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?q=80&w=2070&auto=format&fit=crop');
+        }
+        .toast { visibility: hidden; opacity: 0; min-width: 250px; margin-left: -125px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transition: opacity 0.5s, visibility 0.5s; }
+        .toast.show { visibility: visible; opacity: 1; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-in { animation: slideIn 0.5s ease-out forwards; }
+        @keyframes sun-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .sun-icon { animation: sun-spin 20s linear infinite; }
+        
+        .sortable-ghost { opacity: 0.4; background-color: #a7f3d0; }
+        .sortable-chosen { cursor: grabbing; background-color: #ffffff; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .drag-handle { cursor: grab; }
+    </style>
+</head>
+<body class="bg-teal-50 dark:bg-teal-900 text-gray-900 dark:text-gray-100 min-h-screen">
+
+    <div id="app" class="container mx-auto max-w-2xl p-4 sm:p-6">
+        <!-- App-Inhalt bleibt gleich -->
+        <div id="overview-view">
+            <header class="text-center mb-8">
+                <i class="fas fa-umbrella-beach text-5xl text-teal-600 dark:text-teal-400 sun-icon"></i>
+                <h1 class="text-4xl sm:text-5xl font-bold mt-2">Meine Packlisten</h1>
+                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">Für jede Reise perfekt vorbereitet.</p>
+            </header>
+            <div id="list-container" class="space-y-4"></div>
+            <div class="mt-8">
+                <button id="add-list-btn" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <i class="fas fa-plus mr-2"></i> Neue Liste erstellen
+                </button>
+            </div>
+        </div>
+        <div id="detail-view" class="hidden">
+             <header class="flex items-center mb-8">
+                <button id="back-btn" class="text-teal-600 dark:text-teal-400 text-2xl p-2 -ml-2 mr-2"><i class="fas fa-arrow-left"></i></button>
+                <h1 id="list-title" class="text-3xl sm:text-4xl font-bold truncate">Listenname</h1>
+            </header>
+            <div class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg mb-8">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="item-input" placeholder="Neuer Gegenstand..." class="flex-grow bg-slate-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all">
+                    <button id="add-item-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">Hinzufügen</button>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-2xl font-semibold mb-4">Noch einzupacken</h2>
+                <div id="todo-item-list" class="space-y-3"></div>
+            </div>
+            <div id="completed-items-section" class="mt-10">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-500 dark:text-gray-400">Bereits im Koffer</h2>
+                <div id="completed-item-list" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="add-list-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-slide-in">
+            <h2 class="text-2xl font-bold mb-4">Neue Packliste</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Gib deiner neuen Liste einen Namen.</p>
+            <input type="text" id="new-list-name-input" placeholder="z.B. Sommerurlaub" class="w-full bg-slate-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="cancel-add-list-btn" class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2 px-5 rounded-lg transition-colors">Abbrechen</button>
+                <button id="confirm-add-list-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">Erstellen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const appState = { lists: [], currentView: 'overview', currentListId: null };
+            const overviewView = document.getElementById('overview-view');
+            const detailView = document.getElementById('detail-view');
+            const listContainer = document.getElementById('list-container');
+            const addListBtn = document.getElementById('add-list-btn');
+            const backBtn = document.getElementById('back-btn');
+            const listTitle = document.getElementById('list-title');
+            const itemInput = document.getElementById('item-input');
+            const addItemBtn = document.getElementById('add-item-btn');
+            const todoItemList = document.getElementById('todo-item-list');
+            const completedItemList = document.getElementById('completed-item-list');
+            const addListModal = document.getElementById('add-list-modal');
+            const newListNameInput = document.getElementById('new-list-name-input');
+            const confirmAddListBtn = document.getElementById('confirm-add-list-btn');
+            const cancelAddListBtn = document.getElementById('cancel-add-list-btn');
+
+            function loadData() {
+                const data = localStorage.getItem('packingListsApp');
+                try {
+                    if (data) appState.lists = JSON.parse(data);
+                } catch(e) {
+                    console.error("Fehler beim Laden der Daten:", e);
+                    appState.lists = [];
+                }
+            }
+
+            function saveData() {
+                localStorage.setItem('packingListsApp', JSON.stringify(appState.lists));
+            }
+
+            function showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            function render() {
+                try {
+                    if (appState.currentView === 'overview') {
+                        overviewView.classList.remove('hidden');
+                        detailView.classList.add('hidden');
+                        renderOverview();
+                    } else {
+                        overviewView.classList.add('hidden');
+                        detailView.classList.remove('hidden');
+                        renderDetailView();
+                    }
+                } catch (error) {
+                    console.error("Render-Fehler:", error);
+                    showToast("Ein Anzeigefehler ist aufgetreten.");
+                }
+            }
+
+            function renderOverview() {
+                listContainer.innerHTML = '';
+                if (appState.lists.length === 0) {
+                    listContainer.innerHTML = `<div class="text-center bg-white/50 dark:bg-gray-800/50 p-8 rounded-2xl shadow-md"><i class="fas fa-map-marked-alt fa-3x text-teal-400 mb-4"></i><p class="text-gray-500 dark:text-gray-400">Noch keine Listen erstellt. Starte deine erste Reiseplanung!</p></div>`;
+                    return;
+                }
+                appState.lists.forEach(list => {
+                    const listElement = document.createElement('div');
+                    listElement.className = 'bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors animate-slide-in';
+                    listElement.dataset.id = list.id;
+                    listElement.dataset.action = 'view-list';
+                    const packedCount = list.items.filter(item => item.done).length;
+                    const totalCount = list.items.length;
+                    listElement.innerHTML = `<div class="flex items-center pointer-events-none"><i class="fas fa-passport text-2xl text-teal-500 mr-4"></i><div><p class="font-bold text-lg">${list.name}</p><p class="text-sm text-gray-500 dark:text-gray-400">${packedCount} von ${totalCount} gepackt</p></div></div><button data-id="${list.id}" data-action="delete-list" class="text-red-500 hover:text-red-400 text-xl p-2 transition-colors"><i class="fas fa-trash-alt pointer-events-none"></i></button>`;
+                    listContainer.appendChild(listElement);
+                });
+            }
+
+            function renderDetailView() {
+                const list = appState.lists.find(l => l.id === appState.currentListId);
+                if (!list) {
+                    appState.currentView = 'overview';
+                    render();
+                    return;
+                }
+                listTitle.textContent = list.name;
+                todoItemList.innerHTML = '';
+                completedItemList.innerHTML = '';
+                const todoItems = list.items.filter(item => !item.done);
+                const completedItems = list.items.filter(item => item.done);
+                if (todoItems.length === 0) {
+                    todoItemList.innerHTML = `<p class="text-gray-500 dark:text-gray-400 italic text-center py-4">Alles eingepackt! Gute Reise!</p>`;
+                } else {
+                    todoItems.forEach(item => {
+                        todoItemList.innerHTML += `<div data-item-id="${item.id}" class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex items-center justify-between"><i class="fas fa-grip-vertical drag-handle text-gray-400 mr-2 p-2"></i><p class="flex-grow">${item.text}</p><div class="flex-shrink-0"><button data-id="${item.id}" data-action="complete-item" class="text-green-500 hover:text-green-400 p-2 text-xl transition-transform transform hover:scale-110"><i class="far fa-check-circle"></i></button><button data-id="${item.id}" data-action="delete-item" class="text-red-500 hover:text-red-400 p-2 text-xl transition-transform transform hover:scale-110"><i class="fas fa-times-circle"></i></button></div></div>`;
+                    });
+                }
+                document.getElementById('completed-items-section').style.display = completedItems.length > 0 ? 'block' : 'none';
+                completedItems.forEach(item => {
+                    completedItemList.innerHTML += `<div class="bg-slate-200 dark:bg-gray-700/80 p-4 rounded-lg opacity-70 flex items-center justify-between animate-slide-in"><p class="flex-grow line-through text-gray-600 dark:text-gray-400">${item.text}</p><div class="flex-shrink-0"><button data-id="${item.id}" data-action="uncomplete-item" class="text-yellow-500 hover:text-yellow-400 p-2 text-xl transition-transform transform hover:scale-110"><i class="fas fa-undo"></i></button></div></div>`;
+                });
+                
+                new Sortable(todoItemList, {
+                    animation: 200,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    handle: '.drag-handle',
+                    onEnd: function (evt) {
+                        const list = appState.lists.find(l => l.id === appState.currentListId);
+                        if (!list) return;
+                        let todoItems = list.items.filter(item => !item.done);
+                        const [movedItem] = todoItems.splice(evt.oldIndex, 1);
+                        todoItems.splice(evt.newIndex, 0, movedItem);
+                        const doneItems = list.items.filter(item => item.done);
+                        list.items = [...todoItems, ...doneItems];
+                        saveData();
+                    },
+                });
+            }
+            
+            function showAddListModal() {
+                newListNameInput.value = '';
+                addListModal.classList.remove('hidden');
+                newListNameInput.focus();
+            }
+
+            function confirmAddList() {
+                const listName = newListNameInput.value.trim();
+                if (listName) {
+                    appState.lists.push({ id: Date.now(), name: listName, items: [] });
+                    saveData();
+                    addListModal.classList.add('hidden');
+                    render();
+                } else {
+                    showToast("Bitte einen Namen für die Liste eingeben.");
+                }
+            }
+
+            function handleAddItem() {
+                const text = itemInput.value.trim();
+                if (text === '') return;
+                const list = appState.lists.find(l => l.id === appState.currentListId);
+                if (list) {
+                    list.items.push({ id: Date.now(), text: text, done: false });
+                    saveData();
+                    renderDetailView();
+                    itemInput.value = '';
+                    itemInput.focus();
+                }
+            }
+            
+            document.body.addEventListener('click', (e) => {
+                const target = e.target.closest('[data-action]');
+                if (!target) return;
+                const action = target.dataset.action;
+                const id = parseInt(target.dataset.id);
+                const list = appState.lists.find(l => l.id === appState.currentListId);
+                switch(action) {
+                    case 'view-list':
+                        appState.currentListId = id;
+                        appState.currentView = 'detail';
+                        render();
+                        break;
+                    case 'delete-list':
+                        e.stopPropagation();
+                        if (confirm("Soll diese Liste wirklich gelöscht werden?")) {
+                            appState.lists = appState.lists.filter(l => l.id !== id);
+                            saveData();
+                            render();
+                        }
+                        break;
+                    case 'complete-item':
+                    case 'uncomplete-item':
+                        if (list) {
+                            const item = list.items.find(i => i.id === id);
+                            if (item) item.done = !item.done;
+                            saveData();
+                            renderDetailView();
+                        }
+                        break;
+                    case 'delete-item':
+                        if (list) {
+                            list.items = list.items.filter(i => i.id !== id);
+                            saveData();
+                            renderDetailView();
+                        }
+                        break;
+                }
+            });
+
+            addListBtn.addEventListener('click', showAddListModal);
+            confirmAddListBtn.addEventListener('click', confirmAddList);
+            cancelAddListBtn.addEventListener('click', () => addListModal.classList.add('hidden'));
+            newListNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') confirmAddList(); });
+            addItemBtn.addEventListener('click', handleAddItem);
+            itemInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleAddItem(); });
+            backBtn.addEventListener('click', () => {
+                appState.currentView = 'overview';
+                render();
+            });
+            
+            // Initialer Start der App
+            loadData();
+            render();
+
+            // Service Worker für Offline-Fähigkeit und Updates registrieren
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('sw.js').then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
