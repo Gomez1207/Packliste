@@ -8,8 +8,7 @@
     <!-- PWA Manifest & Theme -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#14B8A6">
-    <!-- KORRIGIERT: Icon wird direkt aus dem Internet geladen -->
-    <link rel="apple-touch-icon" href="https://placehold.co/192x192/0D9488/FFFFFF?text=☀️&font=noto">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Packliste">
@@ -44,12 +43,13 @@
 <body class="bg-teal-50 dark:bg-teal-900 text-gray-900 dark:text-gray-100 min-h-screen">
 
     <div id="app" class="container mx-auto max-w-2xl p-4 sm:p-6">
-        <!-- App-Inhalt bleibt gleich -->
+        <!-- App-Inhalt -->
         <div id="overview-view">
             <header class="text-center mb-8">
                 <i class="fas fa-umbrella-beach text-5xl text-teal-600 dark:text-teal-400 sun-icon"></i>
                 <h1 class="text-4xl sm:text-5xl font-bold mt-2">Meine Packlisten</h1>
-                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">Für jede Reise perfekt vorbereitet.</p>
+                <!-- GEÄNDERTER TEXT -->
+                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">Mama muss prüma Sachen für Böbbel packen!</p>
             </header>
             <div id="list-container" class="space-y-4"></div>
             <div class="mt-8">
